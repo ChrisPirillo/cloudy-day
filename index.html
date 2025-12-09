@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    
+    <!-- SEO Meta Tags -->
+    <title>Cloudy Day - Real-time Procedural Cloud Simulation</title>
+    <meta name="description" content="Experience Cloudy Day, a real-time WebGL cloud simulation engine. Customize wind speed, cloud density, lighting, and time of day in this interactive atmospheric physics experiment.">
+    <meta name="keywords" content="Cloudy Day, procedural clouds, WebGL, 3D weather, cloud simulation, interactive sky, atmospheric physics, three.js, html5 canvas">
+    <meta name="author" content="Chris Pirillo">
+    <link rel="canonical" href="https://pirillo.com/arcade/cloudy-day.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/cloudy-day.html">
+    <meta property="og:title" content="Cloudy Day - Real-time Procedural Cloud Simulation">
+    <meta property="og:description" content="A real-time, interactive 3D cloud engine running in your browser. Control the weather, wind, and lighting.">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/cloudy-day.png">
+    <meta property="og:site_name" content="Chris Pirillo's Arcade">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@ChrisPirillo">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+    <meta name="twitter:url" content="https://pirillo.com/arcade/cloudy-day.html">
+    <meta name="twitter:title" content="Cloudy Day - Cloud Engine">
+    <meta name="twitter:description" content="Experience a real-time WebGL cloud simulation. Adjust atmospheric physics in your browser.">
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/cloudy-day.png">
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Cloudy Day",
+      "url": "https://pirillo.com/arcade/cloudy-day.html",
+      "image": "https://pirillo.com/arcade/images/cloudy-day.png",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://pirillo.com",
+        "sameAs": "https://chris.pirillo.com/"
+      },
+      "description": "A real-time, procedural cloud simulation engine using WebGL.",
+      "applicationCategory": "MultimediaApplication",
+      "genre": "Simulation",
+      "operatingSystem": "Any"
+    }
+    </script>
+
+    <!-- Performance: Preload Critical Assets -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; touch-action: none; cursor: grab; }
+        #canvas-container:active { cursor: grabbing; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        #menu-btn { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; cursor: pointer; pointer-events: auto; z-index: 20; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.3); border-radius: 50%; backdrop-filter: blur(5px); border: none; padding: 0; }
+        .bar { width: 20px; height: 2px; background-color: white; margin: 2px 0; transition: 0.3s; }
+        
+        #side-menu { position: absolute; top: 0; right: -340px; width: 320px; height: 100%; background: rgba(15, 20, 25, 0.95); backdrop-filter: blur(20px); transition: right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: auto; overflow-y: auto; padding: 80px 20px 20px; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.1); }
+        #side-menu.open { right: 0; }
+        
+        h1 { color: #fff; font-size: 1.1rem; margin: 0 0 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .control-group { margin-bottom: 20px; }
+        .label { display: flex; justify-content: space-between; color: #bbb; font-size: 0.8rem; margin-bottom: 6px; }
+        select { width: 100%; padding: 6px; background: #222; border: 1px solid #444; color: white; border-radius: 4px; }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: #444; border-radius: 2px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #ddd; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        
+        #fps-counter { position: absolute; bottom: 10px; right: 10px; color: #4caf50; font-family: monospace; font-size: 12px; pointer-events: none; z-index: 5; }
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; z-index: 5; font-size: 0.9rem; letter-spacing: 2px; animation: pulse 1.5s infinite; pointer-events: none; }
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <main id="canvas-container" aria-label="Interactive Cloud Simulation Canvas"></main>
+    <div id="loader" role="status" aria-live="polite">SYNCING WIND PHYSICS...</div>
+    <div id="fps-counter" role="status">FPS: 60</div>
+
+    <aside id="ui-layer">
+        <button id="menu-btn" aria-label="Open Settings Menu">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </button>
+
+        <nav id="side-menu" aria-label="Cloud Engine Controls">
+            <h1>Cloud Engine</h1>
+            
+            <div class="control-group">
+                <div class="label"><label for="preset-selector" style="color: #fff; font-weight: bold;">Preset</label></div>
+                <select id="preset-selector">
+                    <option value="custom">Custom...</option>
+                    <option value="cumulus" selected>Cumulus (Classic)</option>
+                    <option value="storm">Storm Front (Deep)</option>
+                    <option value="overcast">Overcast (Soft)</option>
+                    <option value="wispy">Cirrus (Fast)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="label"><label for="input-timeOfDay" style="color:#ffd700">Time of Day</label><span id="val-timeOfDay">12:00</span></div>
+                <input type="range" id="input-timeOfDay" min="0" max="1" step="0.01" value="0.5" aria-label="Time of Day">
+            </div>
+            
+             <div class="control-group">
+                <div class="label"><label for="input-res" style="color:#4caf50">Render Resolution</label><span id="val-res">1.0x</span></div>
+                <input type="range" id="input-res" min="0.25" max="1.0" step="0.25" value="1.0" aria-label="Render Resolution">
+            </div>
+
+            <div class="control-group">
+                <div class="label"><label for="input-crunch">Texture Crunch</label><span id="val-crunch">0.8</span></div>
+                <input type="range" id="input-crunch" min="0.0" max="1.5" step="0.1" value="0.8" aria-label="Texture Crunch">
+            </div>
+
+            <div class="control-group">
+                <div class="label"><label for="input-detailScale">Detail Scale</label><span id="val-detailScale">4.0</span></div>
+                <input type="range" id="input-detailScale" min="1.0" max="8.0" step="0.1" value="4.0" aria-label="Detail Scale">
+            </div>
+
+            <div class="control-group">
+                <div class="label"><label for="input-cover">Cloud Coverage</label><span id="val-cover">0.5</span></div>
+                <input type="range" id="input-cover" min="0.1" max="0.9" step="0.01" value="0.5" aria-label="Cloud Coverage">
+            </div>
+
+            <div class="control-group">
+                <div class="label"><label for="input-density">Density</label><span id="val-density">1.5</span></div>
+                <input type="range" id="input-density" min="0.1" max="4" step="0.1" value="1.5" aria-label="Density">
+            </div>
+
+             <div class="control-group">
+                <div class="label"><label for="input-exposure">Exposure</label><span id="val-exposure">0.6</span></div>
+                <input type="range" id="input-exposure" min="0.1" max="3.0" step="0.1" value="0.6" aria-label="Exposure">
+            </div>
+
+             <div class="control-group">
+                <div class="label"><label for="input-speed">Wind Speed</label><span id="val-speed">0.5</span></div>
+                <input type="range" id="input-speed" min="0" max="3" step="0.1" value="0.5" aria-label="Wind Speed">
+            </div>
+            
+             <div class="control-group">
+                <div class="label"><label for="input-steps" style="color:#aaa; font-size:0.75rem;">Quality (Steps)</label></div>
+                <input type="range" id="input-steps" min="24" max="96" step="8" value="48" aria-label="Quality Steps">
+            </div>
+        </nav>
+    </aside>
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+
+        uniform vec2 uResolution;
+        uniform float uTime;
+        uniform vec2 uMouse;
+        
+        uniform float uTimeOfDay; 
+        uniform float uCloudCover;
+        uniform float uDensityMult;
+        uniform float uSpeed;
+        uniform float uCrunch; 
+        uniform float uDetailScale;
+        uniform float uExposure; 
+        uniform int uSteps;
+
+        // --- Optimized Noise ---
+        float hash2(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+        float hash(float n) { return fract(sin(n) * 43758.5453123); }
+        float noise(vec3 x) {
+            vec3 p = floor(x);
+            vec3 f = fract(x);
+            f = f * f * (3.0 - 2.0 * f);
+            float n = p.x + p.y * 57.0 + 113.0 * p.z;
+            return mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                        mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
+                    mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                        mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
+        }
+
+        // --- High Detail FBM ---
+        float fbm(vec3 p) {
+            float f = 0.0;
+            float amp = 0.5;
+            float freq = 1.0;
+            
+            // FIX: Removed Shift * Freq. 
+            // The movement is now handled globally in map() by moving 'p'.
+            // This prevents the "sliding glass" effect where layers move at different speeds.
+            
+            vec3 warp = vec3(0.0);
+            
+            for (int i = 0; i < 5; i++) {
+                vec3 offset = vec3(0.1 * float(i), 0.0, 0.0);
+                
+                // Evolution factor (slow boiling)
+                float evo = uTime * uSpeed * 0.05 * float(i+1); 
+                
+                float n = noise((p * freq) + warp * uCrunch - offset + vec3(0, evo, 0));
+                warp += vec3(n) * 0.55; 
+                f += n * amp;
+                freq *= 2.02; 
+                amp *= 0.5;
+            }
+            return f;
+        }
+        
+        // --- Low Detail FBM ---
+        float fbmLight(vec3 p) {
+            float f = 0.0;
+            float amp = 0.5;
+            float freq = 1.0;
+            for (int i = 0; i < 3; i++) {
+                // Evolution for lighting to match
+                float evo = uTime * uSpeed * 0.05 * float(i+1);
+                float n = noise((p * freq) + vec3(0, evo, 0));
+                f += n * amp;
+                freq *= 2.0; 
+                amp *= 0.5;
+            }
+            return f;
+        }
+
+        // --- Main Map ---
+        float map(vec3 p) {
+            // FIX: Global Wind Movement
+            // Move the sample point p opposite to wind direction
+            // This moves the entire cloud volume as a single solid body
+            vec3 wind = vec3(uTime * uSpeed * 0.5, 0.0, 0.0);
+            vec3 q = p - wind;
+            
+            // Detail noise sampling (also wind corrected)
+            vec3 detailQ = q * uDetailScale;
+            float erosion = noise(detailQ) * 0.6; 
+            
+            float base = fbm(q * 0.8);
+            
+            float d = base;
+            d = mix(d, d - erosion * 0.4, 0.6); 
+            
+            float verticalFade = smoothstep(-20.0, -5.0, p.y) * smoothstep(4.0, 1.5, p.y);
+            d *= verticalFade;
+            
+            d = d - (1.0 - uCloudCover);
+            return max(d * uDensityMult, 0.0);
+        }
+
+        // --- Lighting Map ---
+        float mapLight(vec3 p) {
+            // FIX: Match Wind movement here too for shadow consistency
+            vec3 wind = vec3(uTime * uSpeed * 0.5, 0.0, 0.0);
+            vec3 q = p - wind;
+            
+            float base = fbmLight(q * 0.8);
+            float verticalFade = smoothstep(-20.0, -5.0, p.y) * smoothstep(4.0, 1.5, p.y);
+            float d = base * verticalFade - (1.0 - uCloudCover);
+            return max(d * uDensityMult, 0.0);
+        }
+
+        float phase(vec3 inLight, vec3 inView) {
+            float g = 0.4; 
+            float cosTheta = dot(inLight, inView);
+            return (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
+        }
+
+        vec3 ACESFilmicToneMapping(vec3 x) {
+            float a = 2.51; float b = 0.03; float c = 2.43; float d = 0.59; float e = 0.14;
+            return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+        }
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y;
+            vec3 ro = vec3(0.0, -2.0, 0.0); 
+            
+            float yaw = uMouse.x * 2.0;
+            float pitch = clamp(uMouse.y * 1.5 + 0.2, -0.4, 1.5); 
+            
+            vec3 forward = normalize(vec3(sin(yaw)*cos(pitch), sin(pitch), cos(yaw)*cos(pitch)));
+            vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+            vec3 up = cross(right, forward);
+            vec3 rd = normalize(forward + uv.x * right + uv.y * up);
+
+            float tDay = uTimeOfDay; 
+            vec3 sunPos = normalize(vec3(cos(tDay * 3.14), sin(tDay * 3.14) * 0.7 + 0.2, -0.5));
+            
+            vec3 dawnSky = vec3(0.05, 0.1, 0.25);
+            vec3 noonSky = vec3(0.2, 0.5, 0.9); 
+            vec3 duskSky = vec3(0.15, 0.05, 0.2);
+            
+            vec3 dawnSun = vec3(1.0, 0.4, 0.1);
+            vec3 noonSun = vec3(1.0, 1.0, 0.95); 
+            vec3 duskSun = vec3(1.0, 0.3, 0.5);
+            
+            vec3 skyColTop, sunColor;
+            if(tDay < 0.5) {
+                skyColTop = mix(dawnSky, noonSky, tDay * 2.0);
+                sunColor = mix(dawnSun, noonSun, tDay * 2.0);
+            } else {
+                skyColTop = mix(noonSky, duskSky, (tDay - 0.5) * 2.0);
+                sunColor = mix(noonSun, duskSun, (tDay - 0.5) * 2.0);
+            }
+            vec3 skyColBot = skyColTop * 0.5 + vec3(0.15);
+
+            vec3 col = mix(skyColBot, skyColTop, 0.5 * (rd.y + 1.0));
+            float sunDot = dot(rd, sunPos);
+            col += sunColor * smoothstep(0.997, 0.999, sunDot) * 2.0;
+            col += sunColor * pow(max(0.0, sunDot), 32.0) * 0.5; 
+
+            // --- Raymarching ---
+            float t = 0.5;
+            t += hash2(gl_FragCoord.xy) * 0.15; 
+            
+            float maxDist = 80.0; 
+            
+            vec3 p;
+            float T = 1.0; 
+            vec3 cloudCol = vec3(0.0);
+            int steps = uSteps;
+            float dt = 0.15; 
+
+            for(int i=0; i < 96; i++) {
+                if(i >= steps || T < 0.01 || t > maxDist) break;
+                
+                p = ro + t * rd;
+                if(p.y < -25.0) { t+=dt; continue; }
+
+                float dens = map(p);
+                
+                if(dens > 0.001) {
+                    float densSun = mapLight(p + sunPos * 0.4); 
+                    
+                    float diff = (dens - densSun); 
+                    float shapeLight = 0.6 + 0.4 * clamp(-diff * 5.0, -1.0, 1.0);
+                    float deepShadow = exp(-densSun * 2.0);
+                    float heightGradient = smoothstep(-2.0, 3.0, p.y);
+                    vec3 ambient = mix(skyColBot * 0.4, vec3(0.8), heightGradient * 0.6) * 0.5;
+                    float scatter = phase(sunPos, rd);
+                    
+                    vec3 direct = sunColor * deepShadow * shapeLight * scatter * 1.5; 
+                    vec3 finalLight = direct + ambient;
+                    
+                    float alpha = 1.0 - exp(-dens * dt * 2.0); 
+                    cloudCol += finalLight * alpha * T;
+                    T *= (1.0 - alpha);
+                }
+                dt = 0.15 + t * 0.02;
+                t += dt;
+            }
+            
+            float fog = 1.0 - exp(-t * 0.02);
+            
+            float horizonFade = smoothstep(-0.4, 0.1, rd.y);
+            
+            cloudCol *= horizonFade;
+            T = mix(T, 1.0, 1.0 - horizonFade);
+            
+            col = col * T + cloudCol;
+            col = mix(col, skyColBot, fog);
+            
+            col = ACESFilmicToneMapping(col * uExposure); 
+            col = pow(col, vec3(0.4545)); 
+            col *= 1.0 - dot(uv, uv) * 0.1;
+
+            gl_FragColor = vec4(col, 1.0);
+        }
+    </script>
+
+    <script>
+        const canvasContainer = document.getElementById('canvas-container');
+        const loader = document.getElementById('loader');
+        const fpsCounter = document.getElementById('fps-counter');
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(1);
+        canvasContainer.appendChild(renderer.domElement);
+
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        
+        const uniforms = {
+            uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            uTime: { value: 0 },
+            uMouse: { value: new THREE.Vector2(0, 0.05) }, 
+            
+            uTimeOfDay: { value: 0.5 },
+            uCloudCover: { value: 0.5 },
+            uDensityMult: { value: 1.5 },
+            uSpeed: { value: 0.5 },
+            uCrunch: { value: 0.8 },
+            uDetailScale: { value: 4.0 },
+            uExposure: { value: 0.6 }, 
+            uSteps: { value: 48 } 
+        };
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        // --- Inputs ---
+        let targetMouseX = 0;
+        let targetMouseY = 0;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        window.addEventListener('resize', () => {
+            const res = parseFloat(document.getElementById('input-res').value);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(res);
+            uniforms.uResolution.value.set(window.innerWidth * res, window.innerHeight * res);
+        });
+
+        canvasContainer.addEventListener('mousedown', () => { isDragging = true; });
+        window.addEventListener('mouseup', () => { isDragging = false; }); 
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                targetMouseX += (e.offsetX - previousMousePosition.x) * 0.005;
+                targetMouseY += (e.offsetY - previousMousePosition.y) * 0.005;
+                targetMouseY = Math.max(-0.2, Math.min(1.2, targetMouseY));
+            }
+            previousMousePosition = { x: e.offsetX, y: e.offsetY };
+        });
+
+        canvasContainer.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            e.preventDefault(); 
+        }, {passive: false});
+        
+        window.addEventListener('touchend', () => { isDragging = false; });
+        
+        window.addEventListener('touchmove', (e) => {
+             if (isDragging) {
+                targetMouseX += (e.touches[0].clientX - previousMousePosition.x) * 0.005;
+                targetMouseY += (e.touches[0].clientY - previousMousePosition.y) * 0.005;
+                targetMouseY = Math.max(-0.2, Math.min(1.2, targetMouseY));
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+             }
+        });
+
+        const menuBtn = document.getElementById('menu-btn');
+        const sideMenu = document.getElementById('side-menu');
+        let menuOpen = false;
+
+        menuBtn.addEventListener('click', () => {
+            menuOpen = !menuOpen;
+            sideMenu.classList.toggle('open', menuOpen);
+        });
+
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.value = val;
+                el.dispatchEvent(new Event('input')); 
+                const span = document.getElementById(id.replace('input-', 'val-'));
+                if(span) {
+                    if(id === 'input-timeOfDay') {
+                        const h = Math.floor(val * 12 + 6); 
+                        const m = Math.floor((val * 12 % 1) * 60);
+                        span.innerText = `${h}:${m.toString().padStart(2,'0')}`;
+                    } else if (id === 'input-res') {
+                        span.innerText = val + 'x';
+                    } else {
+                        span.innerText = val;
+                    }
+                }
+            }
+        }
+
+        const presets = {
+            'cumulus': { cover: 0.5, density: 1.5, crunch: 0.8, scale: 4.0, speed: 0.5 },
+            'storm': { cover: 0.75, density: 2.5, crunch: 1.2, scale: 5.0, speed: 1.2 },
+            'overcast': { cover: 0.85, density: 0.6, crunch: 0.2, scale: 2.0, speed: 0.3 },
+            'wispy': { cover: 0.35, density: 0.5, crunch: 0.8, scale: 6.0, speed: 0.8 }
+        };
+
+        document.getElementById('preset-selector').addEventListener('change', (e) => {
+            if(e.target.value === 'custom') return;
+            const p = presets[e.target.value];
+            if(p) {
+                setVal('input-cover', p.cover);
+                setVal('input-density', p.density);
+                setVal('input-crunch', p.crunch);
+                setVal('input-detailScale', p.scale);
+                setVal('input-speed', p.speed);
+            }
+        });
+
+        function bind(id, key, isInt=false) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                setVal(id, val); 
+                if(id !== 'input-timeOfDay' && id !== 'input-res' && id !== 'input-exposure') document.getElementById('preset-selector').value = 'custom';
+                uniforms[key].value = isInt ? parseInt(val) : val;
+            });
+        }
+
+        bind('input-timeOfDay', 'uTimeOfDay');
+        bind('input-cover', 'uCloudCover');
+        bind('input-density', 'uDensityMult');
+        bind('input-speed', 'uSpeed');
+        bind('input-crunch', 'uCrunch');
+        bind('input-detailScale', 'uDetailScale');
+        bind('input-steps', 'uSteps', true);
+        bind('input-exposure', 'uExposure');
+
+        document.getElementById('input-res').addEventListener('input', (e) => {
+            const res = parseFloat(e.target.value);
+            document.getElementById('val-res').innerText = res + 'x';
+            renderer.setPixelRatio(res);
+            uniforms.uResolution.value.set(window.innerWidth * res, window.innerHeight * res);
+        });
+
+        // --- Loop ---
+        let time = 0;
+        let frames = 0;
+        let prevTime = 0;
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            uniforms.uMouse.value.x += (targetMouseX - uniforms.uMouse.value.x) * 0.1;
+            uniforms.uMouse.value.y += (targetMouseY - uniforms.uMouse.value.y) * 0.1;
+            
+            time += clock.getDelta();
+            uniforms.uTime.value = time;
+            
+            renderer.render(scene, camera);
+            
+            frames++;
+            if (time - prevTime >= 1.0) {
+                fpsCounter.innerText = `FPS: ${frames}`;
+                frames = 0;
+                prevTime = time;
+            }
+
+            if(time > 0.2) document.getElementById('loader').style.display = 'none';
+        }
+        animate();
+
+    </script>
+</body>
+</html>
